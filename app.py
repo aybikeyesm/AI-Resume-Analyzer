@@ -1,112 +1,65 @@
 import os
 import re
-from pypdf import PdfReader
+from typing import Dict, List, Tuple
+
 import streamlit as st
+from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# -----------------------------
+
+# =========================================================
 # PAGE CONFIG
-# -----------------------------
+# =========================================================
 st.set_page_config(
     page_title="AI Resume Analyzer Elite",
     page_icon="💼",
     layout="wide"
 )
 
-# -----------------------------
+# =========================================================
 # LANGUAGE PACK
-# -----------------------------
-LANG = {
-    "English": {
-        "title": "AI Resume Analyzer Elite",
-        "hero": "Upload a PDF resume or paste resume text, compare it with a job description, and get a premium-style hiring analysis.",
-        "language": "Language",
-        "theme": "Theme",
-        "light": "Light",
-        "dark": "Dark",
-        "options": "Options",
-        "resume_mode": "Resume Input Type",
-        "upload_pdf": "Upload PDF Resume",
-        "paste_text": "Paste Resume Text",
-        "load_demo": "Load Demo CV",
-        "premium_access": "Premium Access",
-        "premium_code": "Enter premium code",
-        "premium_placeholder": "Premium code",
-        "premium_unlocked": "Premium unlocked",
-        "premium_locked": "Some advanced features are premium only.",
-        "features": "Features",
-        "pdf_upload": "PDF CV Upload",
-        "resume_input": "Resume Input",
-        "upload_cv_pdf": "Upload CV as PDF",
-        "pdf_success": "PDF text extracted successfully.",
-        "pdf_error": "Could not extract readable text from this PDF.",
-        "preview_resume": "Preview extracted resume text",
-        "paste_resume": "Paste your resume text",
-        "paste_resume_placeholder": "Paste the resume content here...",
-        "job_description": "Job Description",
-        "paste_jd": "Paste the target job description",
-        "paste_jd_placeholder": "Paste the job description here...",
-        "run_analysis": "Run Elite Analysis",
-        "warning_fields": "Please provide both a resume and a job description.",
-        "match_score": "Match Score",
-        "ats_score": "ATS Score",
-        "job_chance": "Job Chance",
-        "role_prediction": "Role Prediction",
-        "overall_evaluation": "Overall Evaluation",
-        "resume_rating": "Resume Rating",
-        "recruiter_view": "Recruiter View",
-        "premium_only": "Premium Only",
-        "unlock_premium_msg": "Unlock Premium to view job chance estimate and recruiter impression.",
-        "summary_title": "CV Summary",
-        "predicted_role": "Predicted Best-Fit Role",
-        "matched_skills": "Matched Skills",
-        "skill_gap": "Skill Gap Detection",
-        "no_matched": "No matched skills found.",
-        "no_missing": "No major missing skills detected.",
-        "premium_features": "Premium Features",
-        "unlock_premium_to_access": "Unlock premium to access:",
-        "download_report": "Download Analysis Report",
-        "report_filename": "resume_analysis_report.txt",
-        "demo_note": "These results are demo-style estimates based on text similarity and keyword matching. They are not real hiring guarantees.",
-        "footer": "AI Resume Analyzer Elite • premium CV screening demo",
-        "tip_banner": "Tip: Add a file named banner.png to the same folder if you want a hero image.",
-        "strong_match": "Strong Match",
-        "moderate_match": "Moderate Match",
-        "weak_match": "Weak Match",
-        "high": "High",
-        "medium": "Medium",
-        "low": "Low",
-        "strong_candidate": "Strong candidate",
-        "potential_candidate": "Potential candidate",
-        "needs_improvement": "Needs improvement",
-        "role_undetermined": "General / Undetermined",
-        "job_chance_text_high": "Your resume looks competitive for this role.",
-        "job_chance_text_medium": "You may have a reasonable chance, but your CV could be improved.",
-        "job_chance_text_low": "Your current CV may struggle against this job description.",
-        "recruiter_text_strong": "This resume gives a positive first impression for screening.",
-        "recruiter_text_medium": "The profile shows promise, but there are areas to improve.",
-        "recruiter_text_low": "The resume may not stand out strongly in an initial recruiter review.",
-    },
+# =========================================================
+LANG: Dict[str, Dict[str, str]] = {
     "Türkçe": {
         "title": "Yapay Zekâ CV Analizörü Elite",
-        "hero": "PDF CV yükleyin veya CV metnini yapıştırın, iş ilanı ile karşılaştırın ve premium görünümlü bir işe alım analizi alın.",
+        "hero": "Önce profil oluştur, sonra planını seç, ardından CV yükleyip analizini al.",
         "language": "Dil",
         "theme": "Tema",
         "light": "Açık",
         "dark": "Koyu",
         "options": "Seçenekler",
+        "step1": "1. Profil Oluştur",
+        "step2": "2. Plan Seçimi",
+        "step3": "3. CV Analizi",
+        "name": "Ad Soyad",
+        "email": "E-posta",
+        "target_role": "Hedef Rol",
+        "experience_level": "Deneyim Seviyesi",
+        "student": "Öğrenci",
+        "new_grad": "Yeni Mezun",
+        "junior": "Junior",
+        "mid": "Mid-Level",
+        "senior": "Senior",
+        "location": "Konum",
+        "create_profile": "Profili Kaydet",
+        "profile_saved": "Profil kaydedildi.",
+        "complete_profile": "Devam etmeden önce profilini doldur.",
+        "profile_card": "Profil Bilgileri",
+        "plan_card": "Plan Durumu",
+        "choose_plan": "Plan Seç",
+        "free_plan": "Normal Plan",
+        "premium_plan": "Premium Plan",
+        "enter_premium_code": "Premium kodunu gir",
+        "premium_code_placeholder": "Premium kodu",
+        "continue_analysis": "Analize Geç",
+        "premium_active": "Premium aktif",
+        "free_active": "Normal plan aktif",
+        "analysis_locked": "Analize geçmek için önce profil oluştur ve plan seç.",
         "resume_mode": "CV Giriş Türü",
         "upload_pdf": "PDF CV Yükle",
         "paste_text": "CV Metni Yapıştır",
         "load_demo": "Demo CV Yükle",
-        "premium_access": "Premium Erişim",
-        "premium_code": "Premium kodunu gir",
-        "premium_placeholder": "Premium kodu",
-        "premium_unlocked": "Premium açıldı",
-        "premium_locked": "Bazı gelişmiş özellikler sadece premium.",
-        "features": "Özellikler",
-        "pdf_upload": "PDF CV Yükleme",
         "resume_input": "CV Girişi",
         "upload_cv_pdf": "CV'yi PDF olarak yükle",
         "pdf_success": "PDF metni başarıyla çıkarıldı.",
@@ -117,8 +70,10 @@ LANG = {
         "job_description": "İş İlanı",
         "paste_jd": "Hedef iş ilanını yapıştır",
         "paste_jd_placeholder": "İş ilanını buraya yapıştır...",
-        "run_analysis": "Elite Analizi Çalıştır",
+        "run_analysis": "Analizi Çalıştır",
         "warning_fields": "Lütfen hem CV hem iş ilanı gir.",
+        "features": "Özellikler",
+        "pdf_upload": "PDF CV Yükleme",
         "match_score": "Uyum Skoru",
         "ats_score": "ATS Skoru",
         "job_chance": "İşe Girme İhtimali",
@@ -127,7 +82,7 @@ LANG = {
         "resume_rating": "CV Değerlendirmesi",
         "recruiter_view": "Recruiter Görüşü",
         "premium_only": "Sadece Premium",
-        "unlock_premium_msg": "İşe girme ihtimali ve recruiter görüşünü görmek için Premium'u aç.",
+        "unlock_premium_msg": "İşe girme ihtimali ve recruiter görüşünü görmek için Premium aç.",
         "summary_title": "CV Özeti",
         "predicted_role": "Tahmini En Uygun Rol",
         "matched_skills": "Eşleşen Yetkinlikler",
@@ -135,11 +90,11 @@ LANG = {
         "no_matched": "Eşleşen yetkinlik bulunamadı.",
         "no_missing": "Belirgin bir eksik yetkinlik bulunmadı.",
         "premium_features": "Premium Özellikler",
-        "unlock_premium_to_access": "Şunlara erişmek için premium aç:",
+        "unlock_premium_to_access": "Premium ile açılan özellikler:",
         "download_report": "Analiz Raporunu İndir",
         "report_filename": "cv_analiz_raporu.txt",
         "demo_note": "Bu sonuçlar metin benzerliği ve anahtar kelime eşleşmesine dayalı demo tahminlerdir. Gerçek işe alım garantisi vermez.",
-        "footer": "Yapay Zekâ CV Analizörü Elite • premium CV tarama demosu",
+        "footer": "Yapay Zekâ CV Analizörü Elite • profil tabanlı premium CV tarama demosu",
         "tip_banner": "İstersen aynı klasöre banner.png ekleyerek üst görsel kullanabilirsin.",
         "strong_match": "Güçlü Uyum",
         "moderate_match": "Orta Uyum",
@@ -156,13 +111,105 @@ LANG = {
         "job_chance_text_low": "Mevcut CV bu iş ilanına karşı zayıf kalabilir.",
         "recruiter_text_strong": "Bu CV ilk elemede olumlu bir izlenim veriyor.",
         "recruiter_text_medium": "Profil umut veriyor ancak geliştirilecek alanlar var.",
-        "recruiter_text_low": "Bu CV ilk recruiter değerlendirmesinde yeterince öne çıkmayabilir.",
+        "recruiter_text_low": "Bu CV ilk recruiter değerlendirmesinde yeterince öne çıkmayabilir."
+    },
+    "English": {
+        "title": "AI Resume Analyzer Elite",
+        "hero": "Create your profile first, choose your plan, then upload your resume and analyze it.",
+        "language": "Language",
+        "theme": "Theme",
+        "light": "Light",
+        "dark": "Dark",
+        "options": "Options",
+        "step1": "1. Create Profile",
+        "step2": "2. Choose Plan",
+        "step3": "3. Resume Analysis",
+        "name": "Full Name",
+        "email": "Email",
+        "target_role": "Target Role",
+        "experience_level": "Experience Level",
+        "student": "Student",
+        "new_grad": "New Graduate",
+        "junior": "Junior",
+        "mid": "Mid-Level",
+        "senior": "Senior",
+        "location": "Location",
+        "create_profile": "Save Profile",
+        "profile_saved": "Profile saved.",
+        "complete_profile": "Please complete your profile before continuing.",
+        "profile_card": "Profile Info",
+        "plan_card": "Plan Status",
+        "choose_plan": "Choose Plan",
+        "free_plan": "Normal Plan",
+        "premium_plan": "Premium Plan",
+        "enter_premium_code": "Enter premium code",
+        "premium_code_placeholder": "Premium code",
+        "continue_analysis": "Continue to Analysis",
+        "premium_active": "Premium active",
+        "free_active": "Normal plan active",
+        "analysis_locked": "Create a profile and choose a plan before analysis.",
+        "resume_mode": "Resume Input Type",
+        "upload_pdf": "Upload PDF Resume",
+        "paste_text": "Paste Resume Text",
+        "load_demo": "Load Demo CV",
+        "resume_input": "Resume Input",
+        "upload_cv_pdf": "Upload CV as PDF",
+        "pdf_success": "PDF text extracted successfully.",
+        "pdf_error": "Could not extract readable text from this PDF.",
+        "preview_resume": "Preview extracted resume text",
+        "paste_resume": "Paste your resume text",
+        "paste_resume_placeholder": "Paste the resume content here...",
+        "job_description": "Job Description",
+        "paste_jd": "Paste the target job description",
+        "paste_jd_placeholder": "Paste the job description here...",
+        "run_analysis": "Run Analysis",
+        "warning_fields": "Please provide both a resume and a job description.",
+        "features": "Features",
+        "pdf_upload": "PDF CV Upload",
+        "match_score": "Match Score",
+        "ats_score": "ATS Score",
+        "job_chance": "Job Chance",
+        "role_prediction": "Role Prediction",
+        "overall_evaluation": "Overall Evaluation",
+        "resume_rating": "Resume Rating",
+        "recruiter_view": "Recruiter View",
+        "premium_only": "Premium Only",
+        "unlock_premium_msg": "Unlock Premium to view job chance estimate and recruiter impression.",
+        "summary_title": "CV Summary",
+        "predicted_role": "Predicted Best-Fit Role",
+        "matched_skills": "Matched Skills",
+        "skill_gap": "Skill Gap Detection",
+        "no_matched": "No matched skills found.",
+        "no_missing": "No major missing skills detected.",
+        "premium_features": "Premium Features",
+        "unlock_premium_to_access": "Premium unlocks:",
+        "download_report": "Download Analysis Report",
+        "report_filename": "resume_analysis_report.txt",
+        "demo_note": "These results are demo-style estimates based on text similarity and keyword matching. They are not real hiring guarantees.",
+        "footer": "AI Resume Analyzer Elite • profile-based premium CV screening demo",
+        "tip_banner": "Tip: Add a file named banner.png to the same folder if you want a hero image.",
+        "strong_match": "Strong Match",
+        "moderate_match": "Moderate Match",
+        "weak_match": "Weak Match",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "strong_candidate": "Strong candidate",
+        "potential_candidate": "Potential candidate",
+        "needs_improvement": "Needs improvement",
+        "role_undetermined": "General / Undetermined",
+        "job_chance_text_high": "Your resume looks competitive for this role.",
+        "job_chance_text_medium": "You may have a reasonable chance, but your CV could be improved.",
+        "job_chance_text_low": "Your current CV may struggle against this job description.",
+        "recruiter_text_strong": "This resume gives a positive first impression for screening.",
+        "recruiter_text_medium": "The profile shows promise, but there are areas to improve.",
+        "recruiter_text_low": "The resume may not stand out strongly in an initial recruiter review."
     }
 }
 
-# -----------------------------
+# =========================================================
 # DATA
-# -----------------------------
+# =========================================================
 STOP_WORDS = {
     "a", "an", "the", "and", "or", "but", "if", "while", "with",
     "to", "of", "in", "on", "for", "from", "by", "is", "are",
@@ -173,7 +220,7 @@ STOP_WORDS = {
 }
 
 COMMON_SKILLS = [
-    "python", "java", "c++", "c", "sql", "machine learning", "deep learning",
+    "python", "java", "c++", "sql", "machine learning", "deep learning",
     "data analysis", "data science", "excel", "power bi", "tableau",
     "communication", "teamwork", "leadership", "problem solving",
     "project management", "nlp", "tensorflow", "pytorch", "research",
@@ -231,9 +278,9 @@ Yetkinlikler
 Python, SQL, Excel, Power BI, Veri Analizi, Araştırma, İletişim, Takım Çalışması, İstatistik
 """
 
-# -----------------------------
-# FUNCTIONS
-# -----------------------------
+# =========================================================
+# HELPERS
+# =========================================================
 def get_css(theme: str) -> str:
     if theme == "dark":
         return """
@@ -250,21 +297,14 @@ def get_css(theme: str) -> str:
         .big-score { font-size: 52px; font-weight: 900; color: #c4b5fd; line-height: 1; }
         .tag { display: inline-block; padding: 8px 12px; border-radius: 999px; margin: 4px 6px 4px 0; font-size: 14px; font-weight: 700; }
         .good { background-color: #14532d; color: #bbf7d0; }
-        .warn { background-color: #78350f; color: #fde68a; }
         .bad { background-color: #7f1d1d; color: #fecaca; }
         .pill { display: inline-block; padding: 10px 14px; border-radius: 999px; font-weight: 800; font-size: 14px; margin-top: 8px; margin-right: 8px; }
         .pill-good { background: #14532d; color: #bbf7d0; }
         .pill-mid { background: #78350f; color: #fde68a; }
         .pill-bad { background: #7f1d1d; color: #fecaca; }
-        .premium-lock {
-            position: relative; overflow: hidden; min-height: 180px; border-radius: 24px;
-            background: rgba(17,24,39,0.92); border: 1px solid rgba(55,65,81,0.9); padding: 22px; margin-bottom: 18px;
-        }
+        .premium-lock { position: relative; overflow: hidden; min-height: 180px; border-radius: 24px; background: rgba(17,24,39,0.92); border: 1px solid rgba(55,65,81,0.9); padding: 22px; margin-bottom: 18px; }
         .premium-blur { filter: blur(8px); opacity: 0.35; pointer-events: none; user-select: none; }
-        .premium-overlay {
-            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            flex-direction: column; font-weight: 800; color: #f9fafb; backdrop-filter: blur(2px);
-        }
+        .premium-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; font-weight: 800; color: #f9fafb; backdrop-filter: blur(2px); }
         .footer-note { text-align: center; color: #9ca3af; font-size: 14px; margin-top: 24px; }
         </style>
         """
@@ -282,21 +322,14 @@ def get_css(theme: str) -> str:
     .big-score { font-size: 52px; font-weight: 900; color: #312e81; line-height: 1; }
     .tag { display: inline-block; padding: 8px 12px; border-radius: 999px; margin: 4px 6px 4px 0; font-size: 14px; font-weight: 700; }
     .good { background-color: #dcfce7; color: #166534; }
-    .warn { background-color: #fef3c7; color: #92400e; }
     .bad { background-color: #fee2e2; color: #991b1b; }
     .pill { display: inline-block; padding: 10px 14px; border-radius: 999px; font-weight: 800; font-size: 14px; margin-top: 8px; margin-right: 8px; }
     .pill-good { background: #dcfce7; color: #166534; }
     .pill-mid { background: #fef3c7; color: #92400e; }
     .pill-bad { background: #fee2e2; color: #991b1b; }
-    .premium-lock {
-        position: relative; overflow: hidden; min-height: 180px; border-radius: 24px;
-        background: rgba(255,255,255,0.93); border: 1px solid rgba(226,232,240,0.9); padding: 22px; margin-bottom: 18px;
-    }
+    .premium-lock { position: relative; overflow: hidden; min-height: 180px; border-radius: 24px; background: rgba(255,255,255,0.93); border: 1px solid rgba(226,232,240,0.9); padding: 22px; margin-bottom: 18px; }
     .premium-blur { filter: blur(8px); opacity: 0.35; pointer-events: none; user-select: none; }
-    .premium-overlay {
-        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-        flex-direction: column; font-weight: 800; color: #111827; backdrop-filter: blur(2px);
-    }
+    .premium-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; font-weight: 800; color: #111827; backdrop-filter: blur(2px); }
     .footer-note { text-align: center; color: #6b7280; font-size: 14px; margin-top: 24px; }
     </style>
     """
@@ -315,17 +348,30 @@ def extract_text_from_pdf(uploaded_file) -> str:
 
 def clean_text(text: str) -> str:
     text = text.lower()
-    text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
+    text = re.sub(r"[^a-zA-Z0-9\s\+\#]", " ", text)
     words = text.split()
     words = [word for word in words if word not in STOP_WORDS]
     return " ".join(words)
 
-def extract_skills(text: str, skills_list: list[str]) -> list[str]:
+def extract_skills(text: str, skills_list: List[str]) -> List[str]:
     text_lower = text.lower()
     found_skills = []
+
     for skill in skills_list:
-        if skill.lower() in text_lower:
+        skill_lower = skill.lower()
+
+        if len(skill_lower) <= 1:
+            continue
+
+        if "+" in skill_lower or "#" in skill_lower:
+            if skill_lower in text_lower:
+                found_skills.append(skill)
+            continue
+
+        pattern = r"\b" + re.escape(skill_lower) + r"\b"
+        if re.search(pattern, text_lower):
             found_skills.append(skill)
+
     return sorted(list(set(found_skills)))
 
 def calculate_similarity(cv_text: str, jd_text: str) -> float:
@@ -336,26 +382,26 @@ def calculate_similarity(cv_text: str, jd_text: str) -> float:
     similarity = cosine_similarity(vectors[0:1], vectors[1:2])[0][0]
     return round(float(similarity) * 100, 2)
 
-def classify_match(score: float, t: dict) -> tuple[str, str]:
+def classify_match(score: float, t: Dict[str, str]) -> Tuple[str, str]:
     if score >= 78:
-        return t["strong_match"], "pill-good"
+        return t.get("strong_match", "Strong Match"), "pill-good"
     if score >= 55:
-        return t["moderate_match"], "pill-mid"
-    return t["weak_match"], "pill-bad"
+        return t.get("moderate_match", "Moderate Match"), "pill-mid"
+    return t.get("weak_match", "Weak Match"), "pill-bad"
 
-def estimate_job_chance(score: float, matched_skills: list[str], missing_skills: list[str], t: dict) -> tuple[int, str, str, str]:
+def estimate_job_chance(score: float, matched_skills: List[str], missing_skills: List[str], t: Dict[str, str]):
     bonus = min(len(matched_skills) * 2, 12)
     penalty = min(len(missing_skills) * 1.5, 15)
     chance = score + bonus - penalty
     chance = max(5, min(95, round(chance)))
 
     if chance >= 75:
-        return chance, t["high"], "pill-good", t["job_chance_text_high"]
+        return chance, t.get("high", "High"), "pill-good", t.get("job_chance_text_high", "Strong chance.")
     if chance >= 50:
-        return chance, t["medium"], "pill-mid", t["job_chance_text_medium"]
-    return chance, t["low"], "pill-bad", t["job_chance_text_low"]
+        return chance, t.get("medium", "Medium"), "pill-mid", t.get("job_chance_text_medium", "Moderate chance.")
+    return chance, t.get("low", "Low"), "pill-bad", t.get("job_chance_text_low", "Low chance.")
 
-def calculate_ats_score(score: float, matched_skills: list[str], missing_skills: list[str], cv_text: str) -> int:
+def calculate_ats_score(score: float, matched_skills: List[str], missing_skills: List[str], cv_text: str) -> int:
     keyword_score = min(len(matched_skills) * 6, 40)
     balance_score = max(0, 30 - len(missing_skills) * 3)
     content_score = 15 if len(cv_text.split()) >= 120 else 8
@@ -363,15 +409,27 @@ def calculate_ats_score(score: float, matched_skills: list[str], missing_skills:
     ats = round(keyword_score + balance_score + content_score + similarity_part)
     return max(0, min(100, ats))
 
-def recruiter_impression(score: float, ats_score: int, missing_skills: list[str], t: dict) -> tuple[str, str, str]:
+def recruiter_impression(score: float, ats_score: int, missing_skills: List[str], t: Dict[str, str]):
     avg = (score + ats_score) / 2
     if avg >= 75 and len(missing_skills) <= 4:
-        return t["strong_candidate"], "pill-good", t["recruiter_text_strong"]
+        return (
+            t.get("strong_candidate", "Strong candidate"),
+            "pill-good",
+            t.get("recruiter_text_strong", "Positive impression.")
+        )
     if avg >= 55:
-        return t["potential_candidate"], "pill-mid", t["recruiter_text_medium"]
-    return t["needs_improvement"], "pill-bad", t["recruiter_text_low"]
+        return (
+            t.get("potential_candidate", "Potential candidate"),
+            "pill-mid",
+            t.get("recruiter_text_medium", "Shows promise.")
+        )
+    return (
+        t.get("needs_improvement", "Needs improvement"),
+        "pill-bad",
+        t.get("recruiter_text_low", "Needs stronger profile.")
+    )
 
-def predict_role(cv_text: str, t: dict) -> str:
+def predict_role(cv_text: str, t: Dict[str, str]) -> str:
     text = cv_text.lower()
     scores = {}
     for role, keywords in ROLE_KEYWORDS.items():
@@ -382,10 +440,10 @@ def predict_role(cv_text: str, t: dict) -> str:
         scores[role] = role_score
     best_role = max(scores, key=scores.get)
     if scores[best_role] == 0:
-        return t["role_undetermined"]
+        return t.get("role_undetermined", "General / Undetermined")
     return best_role
 
-def generate_cv_summary(predicted_role: str, matched_skills: list[str], score: float, lang_choice: str) -> str:
+def generate_cv_summary(predicted_role: str, matched_skills: List[str], score: float, lang_choice: str) -> str:
     top_skills = ", ".join(matched_skills[:5]) if matched_skills else (
         "general transferable skills" if lang_choice == "English" else "genel aktarılabilir beceriler"
     )
@@ -402,14 +460,20 @@ def generate_cv_summary(predicted_role: str, matched_skills: list[str], score: f
             return f"Bu CV, {predicted_role} rolleri için kısmi uyum gösteriyor; {top_skills} gibi bazı güçlü yönler var ancak daha iyi hedefleme gerekiyor."
         return f"Bu CV şu anda seçilen rol için daha zayıf bir uyum gösteriyor. {predicted_role} yönünde daha net konumlandırma ve role özgü becerilerin daha güçlü vurgulanması faydalı olabilir."
 
-def build_report(t: dict, lang_choice: str, score: float, ats: int, predicted_role: str, summary: str,
-                 matched: list[str], missing: list[str], is_premium: bool, chance: int, chance_label: str,
-                 recruiter_label: str) -> bytes:
+def build_report(profile: Dict[str, str], t: Dict[str, str], lang_choice: str, score: float, ats: int,
+                 predicted_role: str, summary: str, matched: List[str], missing: List[str],
+                 is_premium: bool, chance: int, chance_label: str, recruiter_label: str) -> bytes:
     lines = []
     if lang_choice == "English":
         lines.extend([
             "AI Resume Analyzer Elite Report",
             "--------------------------------",
+            f"Profile Name: {profile.get('name', '')}",
+            f"Email: {profile.get('email', '')}",
+            f"Target Role: {profile.get('target_role', '')}",
+            f"Experience Level: {profile.get('experience_level', '')}",
+            f"Location: {profile.get('location', '')}",
+            "",
             f"Match Score: {score}%",
             f"ATS Score: {ats}%",
             f"Role Prediction: {predicted_role}",
@@ -420,14 +484,16 @@ def build_report(t: dict, lang_choice: str, score: float, ats: int, predicted_ro
             lines.append(f"Missing Skills: {', '.join(missing) if missing else 'None'}")
             lines.append(f"Job Chance: {chance}% ({chance_label})")
             lines.append(f"Recruiter Impression: {recruiter_label}")
-        else:
-            lines.append("Missing Skills: Premium only")
-            lines.append("Job Chance: Premium only")
-            lines.append("Recruiter Impression: Premium only")
     else:
         lines.extend([
             "Yapay Zekâ CV Analizörü Elite Raporu",
             "-----------------------------------",
+            f"Ad Soyad: {profile.get('name', '')}",
+            f"E-posta: {profile.get('email', '')}",
+            f"Hedef Rol: {profile.get('target_role', '')}",
+            f"Deneyim Seviyesi: {profile.get('experience_level', '')}",
+            f"Konum: {profile.get('location', '')}",
+            "",
             f"Uyum Skoru: {score}%",
             f"ATS Skoru: {ats}%",
             f"Rol Tahmini: {predicted_role}",
@@ -438,34 +504,43 @@ def build_report(t: dict, lang_choice: str, score: float, ats: int, predicted_ro
             lines.append(f"Eksik Yetkinlikler: {', '.join(missing) if missing else 'Yok'}")
             lines.append(f"İşe Girme İhtimali: {chance}% ({chance_label})")
             lines.append(f"Recruiter Görüşü: {recruiter_label}")
-        else:
-            lines.append("Eksik Yetkinlikler: Sadece premium")
-            lines.append("İşe Girme İhtimali: Sadece premium")
-            lines.append("Recruiter Görüşü: Sadece premium")
     return "\n".join(lines).encode("utf-8")
 
-# -----------------------------
+# =========================================================
 # SESSION STATE
-# -----------------------------
-if "demo_loaded" not in st.session_state:
-    st.session_state.demo_loaded = False
-if "cv_text_manual" not in st.session_state:
-    st.session_state.cv_text_manual = ""
+# =========================================================
+defaults = {
+    "demo_loaded": False,
+    "cv_text_manual": "",
+    "profile_created": False,
+    "profile": {
+        "name": "",
+        "email": "",
+        "target_role": "",
+        "experience_level": "",
+        "location": "",
+    },
+    "plan_selected": False,
+    "plan_type": "free",
+}
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
-# -----------------------------
+# =========================================================
 # TOP CONTROLS
-# -----------------------------
+# =========================================================
 with st.sidebar:
-    lang_choice = st.selectbox("Language / Dil", ["English", "Türkçe"])
-    t = LANG[lang_choice]
-    theme_choice = st.radio(t["theme"], [t["light"], t["dark"]], index=0)
-    theme_mode = "dark" if theme_choice == t["dark"] else "light"
+    lang_choice = st.selectbox("Language / Dil", ["Türkçe", "English"])
+    t = LANG.get(lang_choice, LANG["English"])
+    theme_choice = st.radio(t.get("theme", "Theme"), [t.get("light", "Light"), t.get("dark", "Dark")], index=0)
+    theme_mode = "dark" if theme_choice == t.get("dark", "Dark") else "light"
 
 st.markdown(get_css(theme_mode), unsafe_allow_html=True)
 
-# -----------------------------
-# HERO SECTION
-# -----------------------------
+# =========================================================
+# HERO
+# =========================================================
 banner_path = "banner.png"
 if os.path.exists(banner_path):
     st.image(banner_path, use_container_width=True)
@@ -473,270 +548,345 @@ if os.path.exists(banner_path):
 st.markdown(
     f"""
     <div class="hero-box">
-        <div class="hero-title">{t['title']}</div>
-        <div>{t['hero']}</div>
+        <div class="hero-title">{t.get('title', 'AI Resume Analyzer Elite')}</div>
+        <div>{t.get('hero', '')}</div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# -----------------------------
-# SIDEBAR OPTIONS
-# -----------------------------
-with st.sidebar:
-    st.header(t["options"])
-    mode = st.radio(t["resume_mode"], [t["upload_pdf"], t["paste_text"]])
+# =========================================================
+# STEP 1 PROFILE
+# =========================================================
+st.markdown(f"### {t.get('step1', '1. Create Profile')}")
+st.markdown(f'<div class="card"><div class="section-title">{t.get("profile_card", "Profile Info")}</div>', unsafe_allow_html=True)
 
-    if st.button(f"🧪 {t['load_demo']}", use_container_width=True):
-        st.session_state.demo_loaded = True
-        st.session_state.cv_text_manual = DEMO_CV_EN if lang_choice == "English" else DEMO_CV_TR
+col1, col2 = st.columns(2)
+with col1:
+    profile_name = st.text_input(t.get("name", "Full Name"), value=st.session_state.profile["name"])
+    profile_email = st.text_input(t.get("email", "Email"), value=st.session_state.profile["email"])
+    profile_target_role = st.text_input(t.get("target_role", "Target Role"), value=st.session_state.profile["target_role"])
 
-    st.markdown("---")
-    st.markdown(f"### {t['premium_access']}")
-    premium_unlocked = st.text_input(
-        t["premium_code"],
-        type="password",
-        placeholder=t["premium_placeholder"]
+with col2:
+    levels = [
+        t.get("student", "Student"),
+        t.get("new_grad", "New Graduate"),
+        t.get("junior", "Junior"),
+        t.get("mid", "Mid-Level"),
+        t.get("senior", "Senior")
+    ]
+    current_level = st.session_state.profile["experience_level"]
+    default_index = levels.index(current_level) if current_level in levels else 0
+    profile_experience = st.selectbox(t.get("experience_level", "Experience Level"), levels, index=default_index)
+    profile_location = st.text_input(t.get("location", "Location"), value=st.session_state.profile["location"])
+
+if st.button(t.get("create_profile", "Save Profile"), use_container_width=True):
+    if profile_name.strip() and profile_email.strip() and profile_target_role.strip():
+        st.session_state.profile = {
+            "name": profile_name,
+            "email": profile_email,
+            "target_role": profile_target_role,
+            "experience_level": profile_experience,
+            "location": profile_location,
+        }
+        st.session_state.profile_created = True
+        st.success(t.get("profile_saved", "Profile saved."))
+    else:
+        st.warning(t.get("complete_profile", "Please complete your profile."))
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# =========================================================
+# STEP 2 PLAN
+# =========================================================
+st.markdown(f"### {t.get('step2', '2. Choose Plan')}")
+st.markdown(f'<div class="card"><div class="section-title">{t.get("plan_card", "Plan Status")}</div>', unsafe_allow_html=True)
+
+if st.session_state.profile_created:
+    plan_choice = st.radio(
+        t.get("choose_plan", "Choose Plan"),
+        [t.get("free_plan", "Normal Plan"), t.get("premium_plan", "Premium Plan")],
+        index=0 if st.session_state.plan_type == "free" else 1
     )
-    is_premium = premium_unlocked == "elite123"
 
-    if is_premium:
-        st.success(t["premium_unlocked"])
-    else:
-        st.info(t["premium_locked"])
-
-    st.markdown("---")
-    st.markdown(f"### {t['features']}")
-    st.write(f"✅ {t['pdf_upload']}")
-    st.write(f"✅ {t['match_score']}")
-    st.write(f"✅ {t['ats_score']}")
-    st.write(f"✅ {t['role_prediction']}")
-    st.write(f"✅ {t['summary_title']}")
-    st.write(f"🔒 {t['skill_gap']}")
-    st.write(f"🔒 {t['job_chance']}")
-    st.write(f"🔒 {t['recruiter_view']}")
-    st.markdown("---")
-    st.caption(t["tip_banner"])
-
-# -----------------------------
-# INPUTS
-# -----------------------------
-left_col, right_col = st.columns(2)
-cv_text = ""
-
-with left_col:
-    st.markdown(f'<div class="card"><div class="section-title">👤 {t["resume_input"]}</div>', unsafe_allow_html=True)
-
-    if mode == t["upload_pdf"]:
-        uploaded_pdf = st.file_uploader(t["upload_cv_pdf"], type=["pdf"])
-        if uploaded_pdf is not None:
-            cv_text = extract_text_from_pdf(uploaded_pdf)
-            if cv_text.strip():
-                st.success(t["pdf_success"])
-                with st.expander(t["preview_resume"]):
-                    st.write(cv_text[:3000])
-            else:
-                st.error(t["pdf_error"])
-        elif st.session_state.demo_loaded:
-            cv_text = st.session_state.cv_text_manual
-            st.info(t["load_demo"])
-            st.text_area(
-                t["paste_resume"],
-                value=cv_text,
-                height=350,
-                key="demo_preview_pdf_mode"
-            )
-    else:
-        default_text = st.session_state.cv_text_manual
-        cv_text = st.text_area(
-            t["paste_resume"],
-            value=default_text,
-            height=350,
-            placeholder=t["paste_resume_placeholder"],
-            key="manual_resume_input"
+    if plan_choice == t.get("premium_plan", "Premium Plan"):
+        premium_code = st.text_input(
+            t.get("enter_premium_code", "Enter premium code"),
+            type="password",
+            placeholder=t.get("premium_code_placeholder", "Premium code")
         )
-        st.session_state.cv_text_manual = cv_text
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with right_col:
-    st.markdown(f'<div class="card"><div class="section-title">💼 {t["job_description"]}</div>', unsafe_allow_html=True)
-    jd_text = st.text_area(
-        t["paste_jd"],
-        height=350,
-        placeholder=t["paste_jd_placeholder"]
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-analyze = st.button(f"✨ {t['run_analysis']}", use_container_width=True)
-
-# -----------------------------
-# ANALYSIS
-# -----------------------------
-if analyze:
-    if not cv_text.strip() or not jd_text.strip():
-        st.warning(t["warning_fields"])
+        if premium_code == "elite123":
+            st.success(t.get("premium_active", "Premium active"))
+            st.session_state.plan_type = "premium"
+        else:
+            st.info(t.get("premium_only", "Premium only"))
+            st.session_state.plan_type = "premium"
     else:
-        cleaned_cv = clean_text(cv_text)
-        cleaned_jd = clean_text(jd_text)
+        st.success(t.get("free_active", "Normal plan active"))
+        st.session_state.plan_type = "free"
 
-        similarity_score = calculate_similarity(cleaned_cv, cleaned_jd)
-        cv_skills = extract_skills(cv_text, COMMON_SKILLS)
-        jd_skills = extract_skills(jd_text, COMMON_SKILLS)
-        matched_skills = sorted(list(set(cv_skills) & set(jd_skills)))
-        missing_skills = sorted(list(set(jd_skills) - set(cv_skills)))
+    if st.button(t.get("continue_analysis", "Continue to Analysis"), use_container_width=True):
+        st.session_state.plan_selected = True
+else:
+    st.info(t.get("complete_profile", "Please complete your profile before continuing."))
 
-        match_label, match_class = classify_match(similarity_score, t)
-        ats_score = calculate_ats_score(similarity_score, matched_skills, missing_skills, cv_text)
-        job_chance, chance_label, chance_class, chance_text = estimate_job_chance(similarity_score, matched_skills, missing_skills, t)
-        recruiter_label, recruiter_class, recruiter_text = recruiter_impression(similarity_score, ats_score, missing_skills, t)
-        predicted_role = predict_role(cv_text, t)
-        summary_text = generate_cv_summary(predicted_role, matched_skills, similarity_score, lang_choice)
+st.markdown('</div>', unsafe_allow_html=True)
 
-        m1, m2, m3, m4 = st.columns(4)
+# =========================================================
+# STEP 3 ANALYSIS
+# =========================================================
+st.markdown(f"### {t.get('step3', '3. Resume Analysis')}")
 
-        with m1:
-            st.markdown(f"""
-            <div class="metric-box">
-                <div class="metric-label">{t["match_score"]}</div>
-                <div class="metric-value">{similarity_score}%</div>
-            </div>
-            """, unsafe_allow_html=True)
+if not (st.session_state.profile_created and st.session_state.plan_selected):
+    st.markdown(f'<div class="card">{t.get("analysis_locked", "Complete previous steps first.")}</div>', unsafe_allow_html=True)
+else:
+    effective_premium = st.session_state.plan_type == "premium"
 
-        with m2:
-            st.markdown(f"""
-            <div class="metric-box">
-                <div class="metric-label">{t["ats_score"]}</div>
-                <div class="metric-value">{ats_score}%</div>
-            </div>
-            """, unsafe_allow_html=True)
+    with st.sidebar:
+        st.header(t.get("options", "Options"))
+        mode = st.radio(
+            t.get("resume_mode", "Resume Input Type"),
+            [t.get("upload_pdf", "Upload PDF Resume"), t.get("paste_text", "Paste Resume Text")]
+        )
 
-        with m3:
-            if is_premium:
-                st.markdown(f"""
-                <div class="metric-box">
-                    <div class="metric-label">{t["job_chance"]}</div>
-                    <div class="metric-value">{job_chance}%</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="metric-box">
-                    <div class="metric-label">{t["job_chance"]}</div>
-                    <div class="metric-value">🔒 {t["premium_only"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
+        if st.button(f"🧪 {t.get('load_demo', 'Load Demo CV')}", use_container_width=True):
+            st.session_state.demo_loaded = True
+            st.session_state.cv_text_manual = DEMO_CV_TR if lang_choice == "Türkçe" else DEMO_CV_EN
 
-        with m4:
-            st.markdown(f"""
-            <div class="metric-box">
-                <div class="metric-label">{t["role_prediction"]}</div>
-                <div class="metric-value" style="font-size:18px;">{predicted_role}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown(f"### {t.get('features', 'Features')}")
+        st.write(f"✅ {t.get('pdf_upload', 'PDF CV Upload')}")
+        st.write(f"✅ {t.get('match_score', 'Match Score')}")
+        st.write(f"✅ {t.get('ats_score', 'ATS Score')}")
+        st.write(f"✅ {t.get('role_prediction', 'Role Prediction')}")
+        st.write(f"✅ {t.get('summary_title', 'CV Summary')}")
+        st.write(f"🔒 {t.get('skill_gap', 'Skill Gap Detection')}")
+        st.write(f"🔒 {t.get('job_chance', 'Job Chance')}")
+        st.write(f"🔒 {t.get('recruiter_view', 'Recruiter View')}")
+        st.markdown("---")
+        st.caption(t.get("tip_banner", ""))
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    left_col, right_col = st.columns(2)
+    cv_text = ""
 
-        st.markdown(f'<div class="card"><div class="section-title">📊 {t["overall_evaluation"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="big-score">{similarity_score}%</div>', unsafe_allow_html=True)
-        st.progress(min(int(similarity_score), 100))
-        st.markdown(f'<span class="pill {match_class}">{match_label}</span>', unsafe_allow_html=True)
+    with left_col:
+        st.markdown(f'<div class="card"><div class="section-title">👤 {t.get("resume_input", "Resume Input")}</div>', unsafe_allow_html=True)
 
-        if is_premium:
-            st.markdown(f'<span class="pill {chance_class}">{t["job_chance"]}: {chance_label}</span>', unsafe_allow_html=True)
-            st.markdown(f'<span class="pill {recruiter_class}">{t["recruiter_view"]}: {recruiter_label}</span>', unsafe_allow_html=True)
+        if mode == t.get("upload_pdf", "Upload PDF Resume"):
+            uploaded_pdf = st.file_uploader(t.get("upload_cv_pdf", "Upload CV as PDF"), type=["pdf"])
+            if uploaded_pdf is not None:
+                cv_text = extract_text_from_pdf(uploaded_pdf)
+                if cv_text.strip():
+                    st.success(t.get("pdf_success", "PDF text extracted successfully."))
+                    with st.expander(t.get("preview_resume", "Preview extracted resume text")):
+                        st.write(cv_text[:3000])
+                else:
+                    st.error(t.get("pdf_error", "Could not extract readable text from this PDF."))
+            elif st.session_state.demo_loaded:
+                cv_text = st.session_state.cv_text_manual
+                st.text_area(
+                    t.get("paste_resume", "Paste your resume text"),
+                    value=cv_text,
+                    height=350,
+                    key="demo_preview_pdf_mode"
+                )
         else:
-            st.markdown(f'<span class="pill pill-mid">{t["job_chance"]}: {t["premium_only"]}</span>', unsafe_allow_html=True)
-            st.markdown(f'<span class="pill pill-mid">{t["recruiter_view"]}: {t["premium_only"]}</span>', unsafe_allow_html=True)
+            default_text = st.session_state.cv_text_manual
+            cv_text = st.text_area(
+                t.get("paste_resume", "Paste your resume text"),
+                value=default_text,
+                height=350,
+                placeholder=t.get("paste_resume_placeholder", "Paste resume content here..."),
+                key="manual_resume_input"
+            )
+            st.session_state.cv_text_manual = cv_text
 
-        st.write("")
-        st.write(f"**{t['resume_rating']}:** {match_label}")
-        if is_premium:
-            st.write(chance_text)
-            st.write(recruiter_text)
-        else:
-            st.write(t["unlock_premium_msg"])
-
-        st.caption(t["demo_note"])
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown(f'<div class="card"><div class="section-title">🧠 {t["summary_title"]}</div>', unsafe_allow_html=True)
-        st.write(summary_text)
-        st.markdown(f"**{t['predicted_role']}:** {predicted_role}")
+    with right_col:
+        st.markdown(f'<div class="card"><div class="section-title">💼 {t.get("job_description", "Job Description")}</div>', unsafe_allow_html=True)
+        jd_text = st.text_area(
+            t.get("paste_jd", "Paste the target job description"),
+            height=350,
+            placeholder=t.get("paste_jd_placeholder", "Paste the job description here...")
+        )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
+    analyze = st.button(t.get("run_analysis", "Run Analysis"), use_container_width=True)
 
-        with c1:
-            st.markdown(f'<div class="card"><div class="section-title">✅ {t["matched_skills"]}</div>', unsafe_allow_html=True)
-            if matched_skills:
-                for skill in matched_skills:
-                    st.markdown(f'<span class="tag good">{skill}</span>', unsafe_allow_html=True)
+    if analyze:
+        if not cv_text.strip() or not jd_text.strip():
+            st.warning(t.get("warning_fields", "Please provide both a resume and a job description."))
+        else:
+            cleaned_cv = clean_text(cv_text)
+            cleaned_jd = clean_text(jd_text)
+
+            similarity_score = calculate_similarity(cleaned_cv, cleaned_jd)
+            cv_skills = extract_skills(cv_text, COMMON_SKILLS)
+            jd_skills = extract_skills(jd_text, COMMON_SKILLS)
+            matched_skills = sorted(list(set(cv_skills) & set(jd_skills)))
+            missing_skills = sorted(list(set(jd_skills) - set(cv_skills)))
+
+            match_label, match_class = classify_match(similarity_score, t)
+            ats_score = calculate_ats_score(similarity_score, matched_skills, missing_skills, cv_text)
+            job_chance, chance_label, chance_class, chance_text = estimate_job_chance(similarity_score, matched_skills, missing_skills, t)
+            recruiter_label, recruiter_class, recruiter_text = recruiter_impression(similarity_score, ats_score, missing_skills, t)
+            predicted_role = predict_role(cv_text, t)
+            summary_text = generate_cv_summary(predicted_role, matched_skills, similarity_score, lang_choice)
+
+            m1, m2, m3, m4 = st.columns(4)
+
+            with m1:
+                st.markdown(f"""
+                <div class="metric-box">
+                    <div class="metric-label">{t.get("match_score", "Match Score")}</div>
+                    <div class="metric-value">{similarity_score}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with m2:
+                st.markdown(f"""
+                <div class="metric-box">
+                    <div class="metric-label">{t.get("ats_score", "ATS Score")}</div>
+                    <div class="metric-value">{ats_score}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with m3:
+                if effective_premium:
+                    st.markdown(f"""
+                    <div class="metric-box">
+                        <div class="metric-label">{t.get("job_chance", "Job Chance")}</div>
+                        <div class="metric-value">{job_chance}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-box">
+                        <div class="metric-label">{t.get("job_chance", "Job Chance")}</div>
+                        <div class="metric-value">🔒 {t.get("premium_only", "Premium Only")}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            with m4:
+                st.markdown(f"""
+                <div class="metric-box">
+                    <div class="metric-label">{t.get("role_prediction", "Role Prediction")}</div>
+                    <div class="metric-value" style="font-size:18px;">{predicted_role}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            st.markdown(f'<div class="card"><div class="section-title">📊 {t.get("overall_evaluation", "Overall Evaluation")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="big-score">{similarity_score}%</div>', unsafe_allow_html=True)
+            st.progress(min(int(similarity_score), 100))
+            st.markdown(f'<span class="pill {match_class}">{match_label}</span>', unsafe_allow_html=True)
+
+            if effective_premium:
+                st.markdown(f'<span class="pill {chance_class}">{t.get("job_chance", "Job Chance")}: {chance_label}</span>', unsafe_allow_html=True)
+                st.markdown(f'<span class="pill {recruiter_class}">{t.get("recruiter_view", "Recruiter View")}: {recruiter_label}</span>', unsafe_allow_html=True)
             else:
-                st.info(t["no_matched"])
+                st.markdown(f'<span class="pill pill-mid">{t.get("job_chance", "Job Chance")}: {t.get("premium_only", "Premium Only")}</span>', unsafe_allow_html=True)
+                st.markdown(f'<span class="pill pill-mid">{t.get("recruiter_view", "Recruiter View")}: {t.get("premium_only", "Premium Only")}</span>', unsafe_allow_html=True)
+
+            st.write("")
+            st.write(f"**{t.get('resume_rating', 'Resume Rating')}:** {match_label}")
+            if effective_premium:
+                st.write(chance_text)
+                st.write(recruiter_text)
+            else:
+                st.write(t.get("unlock_premium_msg", "Unlock premium to view premium insights."))
+
+            st.caption(t.get("demo_note", "Demo estimate only."))
             st.markdown('</div>', unsafe_allow_html=True)
 
-        with c2:
-            if is_premium:
-                st.markdown(f'<div class="card"><div class="section-title">⚠️ {t["skill_gap"]}</div>', unsafe_allow_html=True)
-                if missing_skills:
-                    for skill in missing_skills:
-                        st.markdown(f'<span class="tag bad">{skill}</span>', unsafe_allow_html=True)
+            st.markdown(f'<div class="card"><div class="section-title">🧠 {t.get("summary_title", "CV Summary")}</div>', unsafe_allow_html=True)
+            st.write(summary_text)
+            st.markdown(f"**{t.get('predicted_role', 'Predicted Best-Fit Role')}:** {predicted_role}")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown(f'<div class="card"><div class="section-title">{t.get("profile_card", "Profile Info")}</div>', unsafe_allow_html=True)
+            st.write(f"**{t.get('name', 'Name')}:** {st.session_state.profile['name']}")
+            st.write(f"**{t.get('email', 'Email')}:** {st.session_state.profile['email']}")
+            st.write(f"**{t.get('target_role', 'Target Role')}:** {st.session_state.profile['target_role']}")
+            st.write(f"**{t.get('experience_level', 'Experience Level')}:** {st.session_state.profile['experience_level']}")
+            st.write(f"**{t.get('location', 'Location')}:** {st.session_state.profile['location']}")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+                st.markdown(f'<div class="card"><div class="section-title">✅ {t.get("matched_skills", "Matched Skills")}</div>', unsafe_allow_html=True)
+                if matched_skills:
+                    for skill in matched_skills:
+                        st.markdown(f'<span class="tag good">{skill}</span>', unsafe_allow_html=True)
                 else:
-                    st.success(t["no_missing"])
+                    st.info(t.get("no_matched", "No matched skills found."))
                 st.markdown('</div>', unsafe_allow_html=True)
-            else:
-                fake_html = f"""
-                <div class="premium-lock">
-                    <div class="premium-blur">
-                        <div class="section-title">⚠️ {t["skill_gap"]}</div>
-                        <span class="tag bad">python</span>
-                        <span class="tag bad">sql</span>
-                        <span class="tag bad">leadership</span>
-                        <span class="tag bad">project management</span>
+
+            with c2:
+                if effective_premium:
+                    st.markdown(f'<div class="card"><div class="section-title">⚠️ {t.get("skill_gap", "Skill Gap Detection")}</div>', unsafe_allow_html=True)
+                    if missing_skills:
+                        for skill in missing_skills:
+                            st.markdown(f'<span class="tag bad">{skill}</span>', unsafe_allow_html=True)
+                    else:
+                        st.success(t.get("no_missing", "No major missing skills detected."))
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    fake_html = f"""
+                    <div class="premium-lock">
+                        <div class="premium-blur">
+                            <div class="section-title">⚠️ {t.get("skill_gap", "Skill Gap Detection")}</div>
+                            <span class="tag bad">python</span>
+                            <span class="tag bad">sql</span>
+                            <span class="tag bad">leadership</span>
+                            <span class="tag bad">project management</span>
+                        </div>
+                        <div class="premium-overlay">
+                            <div style="font-size:32px;">🔒</div>
+                            <div>{t.get("premium_only", "Premium Only")}</div>
+                        </div>
                     </div>
-                    <div class="premium-overlay">
-                        <div style="font-size:32px;">🔒</div>
-                        <div>{t["premium_only"]}</div>
-                    </div>
+                    """
+                    st.markdown(fake_html, unsafe_allow_html=True)
+
+            if not effective_premium:
+                st.markdown(f"""
+                <div class="card">
+                    <div class="section-title">🔒 {t.get("premium_features", "Premium Features")}</div>
+                    <p>{t.get("unlock_premium_to_access", "Premium unlocks:")}</p>
+                    <ul>
+                        <li>{t.get("skill_gap", "Skill Gap Detection")}</li>
+                        <li>{t.get("job_chance", "Job Chance")}</li>
+                        <li>{t.get("recruiter_view", "Recruiter View")}</li>
+                    </ul>
                 </div>
-                """
-                st.markdown(fake_html, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
-        if not is_premium:
-            st.markdown(f"""
-            <div class="card">
-                <div class="section-title">🔒 {t["premium_features"]}</div>
-                <p>{t["unlock_premium_to_access"]}</p>
-                <ul>
-                    <li>{t["skill_gap"]}</li>
-                    <li>{t["job_chance"]}</li>
-                    <li>{t["recruiter_view"]}</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            report_bytes = build_report(
+                st.session_state.profile,
+                t,
+                lang_choice,
+                similarity_score,
+                ats_score,
+                predicted_role,
+                summary_text,
+                matched_skills,
+                missing_skills,
+                effective_premium,
+                job_chance,
+                chance_label,
+                recruiter_label
+            )
 
-        report_bytes = build_report(
-            t=t,
-            lang_choice=lang_choice,
-            score=similarity_score,
-            ats=ats_score,
-            predicted_role=predicted_role,
-            summary=summary_text,
-            matched=matched_skills,
-            missing=missing_skills,
-            is_premium=is_premium,
-            chance=job_chance,
-            chance_label=chance_label,
-            recruiter_label=recruiter_label
-        )
+            st.download_button(
+                label=f"📄 {t.get('download_report', 'Download Report')}",
+                data=report_bytes,
+                file_name=t.get("report_filename", "report.txt"),
+                mime="text/plain",
+                use_container_width=True
+            )
 
-        st.download_button(
-            label=f"📄 {t['download_report']}",
-            data=report_bytes,
-            file_name=t["report_filename"],
-            mime="text/plain",
-            use_container_width=True
-        )
-
-st.markdown(f'<div class="footer-note">{t["footer"]}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="footer-note">{t.get("footer", "")}</div>', unsafe_allow_html=True)
